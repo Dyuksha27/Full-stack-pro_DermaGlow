@@ -1,19 +1,19 @@
 version: "3.8"
 
 services:
-  # 1. 🗄️ Your Existing Database Layer (Preserved & Untouched)
+  # 1. 🗄️ Database Layer
   postgres:
     image: postgres:15
     container_name: dermaglow-db
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345
+      POSTGRES_PASSWORD: 12345  # Local dev fallback is fine here
       POSTGRES_DB: dermaglow
     ports:
-      - "5434:5432" # Accessible on host port 5434
+      - "5434:5432"
     volumes:
-      - dermaglow_data:/var/lib/postgresql/data # Data persists securely
+      - dermaglow_data:/var/lib/postgresql/data
     networks:
       - dermaglow-network
 
@@ -28,20 +28,21 @@ services:
       - NODE_ENV=development
       - DB_USER=postgres
       - DB_PASSWORD=12345
-      - DB_HOST=postgres       # ◄── Crucial: Internal service name used inside Docker network
-      - DB_PORT=5432           # ◄── Internal PG port (not host port 5434)
+      - DB_HOST=postgres       
+      - DB_PORT=5432           
       - DB_NAME=dermaglow
-      - JWT_ACCESS_SECRET=your_access_secret_here
-      - JWT_REFRESH_SECRET=your_refresh_secret_here
-      - STRIPE_SECRET_KEY=sk_test_your_key
-      - CLOUDINARY_CLOUD_NAME=your_cloud_name
-      - CLOUDINARY_API_KEY=your_api_key
-      - CLOUDINARY_API_SECRET=your_api_secret
+      # 🟢 SECURE SEPARATORS: Now dynamically reads directly from your private local .env file!
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       - postgres
     volumes:
       - ./backend:/app
-      - /app/node_modules       # ◄── Prevents host overrides from wiping container binaries
+      - /app/node_modules       
     networks:
       - dermaglow-network
 
@@ -53,7 +54,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_GOOGLE_CLIENT_ID=your_id.apps.googleusercontent.com
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID} # 🟢 Read from .env
     depends_on:
       - backend
     volumes:
@@ -63,7 +64,7 @@ services:
       - dermaglow-network
 
 volumes:
-  dermaglow_data: # Maintains data volume integrity safely
+  dermaglow_data: 
 
 networks:
   dermaglow-network:
