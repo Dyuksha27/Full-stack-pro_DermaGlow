@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  # 1. 🗄️ Database Layer
+  postgres:
+    image: postgres:15
+    container_name: dermaglow-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345  # Local dev fallback is fine here
+      POSTGRES_DB: dermaglow
+    ports:
+      - "5434:5432"
+    volumes:
+      - dermaglow_data:/var/lib/postgresql/data
+    networks:
+      - dermaglow-network
+
+  # 2. 🛡️ Backend API Gateway Container
+  backend:
+    build: ./backend
+    container_name: dermaglow-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - DB_USER=postgres
+      - DB_PASSWORD=12345
+      - DB_HOST=postgres       
+      - DB_PORT=5432           
+      - DB_NAME=dermaglow
+      # 🟢 SECURE SEPARATORS: Now dynamically reads directly from your private local .env file!
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules       
+    networks:
+      - dermaglow-network
+
+  # 3. 🧴 Frontend Portal UI Container
+  frontend:
+    build: ./frontend
+    container_name: dermaglow-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID} # 🟢 Read from .env
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - dermaglow-network
+
+volumes:
+  dermaglow_data: 
+
+networks:
+  dermaglow-network:
+    name: dermaglow-network
