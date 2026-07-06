@@ -19,5 +19,5 @@ COPY . .
 # Expose the specific network port our Express app listens on
 EXPOSE 5000
 
-# ⚡ CHANGED: Direct node invocation bypasses the missing npm start alias script error safely!
-CMD ["node", "src/index.js"]
+# ⚡ UPDATED: Automatically runs the CSV database migration first, then fires up your Express server!
+CMD ["sh", "-c", "node src/import_csv.js && node src/index.js"]
