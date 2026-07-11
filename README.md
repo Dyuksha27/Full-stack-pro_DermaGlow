@@ -71,7 +71,6 @@ DermaGlow/
 
 Make sure you have installed:
 
-- Node.js
 - Docker Desktop
 - Git
 
