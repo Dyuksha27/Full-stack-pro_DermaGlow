@@ -1,8 +1,14 @@
 // src/api/axios.js
 import axios from "axios";
 
+// 🚀 DYNAMIC BASE URL:
+// Reads VITE_API_URL if defined (Vercel production/preview),
+// otherwise defaults to your Render production URL.
+const RAW_URL = import.meta.env.VITE_API_URL || "https://full-stack-pro-dermaglow-1.onrender.com";
+const API_BASE_URL = `${RAW_URL.replace(/\/$/, "")}/api`;
+
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: API_BASE_URL,
   withCredentials: true
 });
 
