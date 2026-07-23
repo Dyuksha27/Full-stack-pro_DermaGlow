@@ -1,4 +1,3 @@
-// backend/src/controllers/productController.js
 import { pool } from "../config/db.js";
 import cloudinary from "../config/cloudinary.js"; 
 
@@ -9,31 +8,39 @@ export const getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 12, category, search } = req.query;
     
-    const parsedLimit = parseInt(limit, 10) || 12;
+    // 🛡️ CAP MAXIMUM LIMIT (Prevents 55,000 limit from memory crashing Node/Postgres)
+    const rawLimit = parseInt(limit, 10) || 12;
+    const parsedLimit = Math.min(Math.max(rawLimit, 1), 100); // Caps limit safely between 1 and 100
     const parsedOffset = (parseInt(page, 10) - 1) * parsedLimit;
 
     let conditions = [];
     let filterValues = [];
 
+    // Filter by Category
     if (category && category.trim() !== "") {
       filterValues.push(`%${category.trim()}%`);
       conditions.push(`category ILIKE $${filterValues.length}`);
     }
 
+    // Filter by Search (Safely search product_name and product_id)
     if (search && search.trim() !== "") {
       filterValues.push(`%${search.trim()}%`);
-      // 🟢 FIXED: Check all potential database ID columns (product_id, id, _id, sku) alongside product_name
+      const idx = filterValues.length;
+      
+      // ✅ Safely cast product_id and product_name (avoiding non-existent 'id' columns)
       conditions.push(
-        `(product_name ILIKE $${filterValues.length} OR product_id::text ILIKE $${filterValues.length} OR id::text ILIKE $${filterValues.length})`
+        `(product_name ILIKE $${idx} OR product_id::text ILIKE $${idx} OR category ILIKE $${idx})`
       );
     }
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
+    // 1. Fetch Total Count
     const countQuery = `SELECT COUNT(*) FROM products${whereClause}`;
     const countResult = await pool.query(countQuery, filterValues);
     const totalCount = parseInt(countResult.rows[0].count, 10);
 
+    // 2. Fetch Paginated Data
     const paginationValues = [...filterValues];
     paginationValues.push(parsedLimit);
     const limitPlaceholder = `$${paginationValues.length}`;
@@ -41,10 +48,10 @@ export const getProducts = async (req, res) => {
     paginationValues.push(parsedOffset);
     const offsetPlaceholder = `$${paginationValues.length}`;
 
-    const rowsQuery = `SELECT * FROM products${whereClause} ORDER BY product_name LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`;
+    const rowsQuery = `SELECT * FROM products${whereClause} ORDER BY product_name ASC LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`;
     const dataResult = await pool.query(rowsQuery, paginationValues);
 
-    // Format rows to ensure numeric prices and default stock counts exist
+    // Format rows safely
     const formattedRows = dataResult.rows.map((product) => ({
       ...product,
       price: product.price ? Number(product.price) : 0,
@@ -58,8 +65,8 @@ export const getProducts = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("BACKEND_CRASH:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("🔥 DATABASE QUERY CRASH:", err.message);
+    res.status(500).json({ error: `Database Query Error: ${err.message}` });
   }
 };
 
@@ -70,9 +77,9 @@ export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Checks matching product_id string or id column if numeric/UUID
+    // Safe query matching product_id
     const result = await pool.query(
-      "SELECT * FROM products WHERE product_id = $1 OR id::text = $1", 
+      "SELECT * FROM products WHERE product_id = $1 OR product_id::text = $1", 
       [id]
     );
 
@@ -82,7 +89,6 @@ export const getProductById = async (req, res) => {
 
     const product = result.rows[0];
 
-    // Formats price as Number and defaults stock if column is null/undefined in DB
     res.json({
       ...product,
       price: product.price ? Number(product.price) : 0,
@@ -96,7 +102,7 @@ export const getProductById = async (req, res) => {
 };
 
 /**
- * 📊 ADMIN METRICS CONTROLLER: Aggregates total order numbers and revenue matrices
+ * 📊 ADMIN METRICS CONTROLLER
  */
 export const getAdminSalesMetrics = async (req, res) => {
   try {
@@ -124,7 +130,7 @@ export const getAdminSalesMetrics = async (req, res) => {
 };
 
 /**
- * 📦 ADMIN ADD PRODUCT CONTROLLER: Implements Cloudinary asset streaming into PostgreSQL
+ * 📦 ADMIN ADD PRODUCT CONTROLLER
  */
 export const addNewProduct = async (req, res) => {
   try {
