@@ -1,4 +1,3 @@
-// src/components/Layout.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingBag, Search, X, Heart, Trash2, Plus, ArrowRight, ShoppingCart, User, LogOut, ClipboardList, ShieldCheck, Mail, Settings, ShieldAlert, Bot } from "lucide-react"; 
@@ -10,26 +9,22 @@ import { useAuth } from "../context/AuthContext";
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
-  const location = useLocation(); // 🛡️ DETECT LOCATION STRING PATHS TO ISOLATE PRODUCT PAGE
+  const location = useLocation();
   const { token, logout, loading: authLoading } = useAuth(); 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false); 
   const [isProfileOpen, setIsProfileOpen] = useState(false); 
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 🛡️ DYNAMIC COUPLING INFRASTRUCTURE FOR THE INTEGRATED AI BOT WORKSPACE STATE
   const [compareCount, setCompareCount] = useState(0);
 
-  // 🛡️ NATIVE USER SOURCE OF TRUTH FOR SEPARATE SANDBOXES
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const currentEmail = user?.email ? user.email.toLowerCase() : "";
   const userSuffix = currentEmail ? `_${currentEmail}` : "";
 
-  // DYNAMIC ACCOUNT-ISOLATED ACCESSIBLE STORAGE KEYS
   const WISHLIST_KEY = `store_wishlist${userSuffix}`;
   const CART_CACHE_KEY = currentEmail ? `user_cart_cache_${currentEmail}` : "user_cart_cache";
   
-  // Lazy state loading initialization bound to separate users
   const [cart, setCart] = useState(() => {
     return JSON.parse(localStorage.getItem(CART_CACHE_KEY) || "[]");
   });
@@ -37,7 +32,6 @@ const Layout = ({ children }) => {
   const [wishlistProducts, setWishlistProducts] = useState([]);
   const [loadingWishlist, setLoadingWishlist] = useState(false);
 
-  // Isolate whether the browser is resting precisely on the product catalog layout view
   const isProductPage = location.pathname === "/products";
 
   const loadDatabaseCart = async () => {
@@ -55,7 +49,6 @@ const Layout = ({ children }) => {
     }
   };
 
-  // FORCE INSTANT SEPARATION THE EXACT MOMENT THE USER SWITCHES
   useEffect(() => {
     if (localStorage.getItem("lock_switch_transition") === "true") return;
 
@@ -70,7 +63,6 @@ const Layout = ({ children }) => {
     }
   }, [currentEmail, token, authLoading, userSuffix]);
 
-  // GLOBAL EVENT LISTENER RE-BINDINGS
   useEffect(() => {
     if (localStorage.getItem("lock_switch_transition") === "true") return;
 
@@ -97,7 +89,6 @@ const Layout = ({ children }) => {
       setWishlistIds(updatedWishlist);
     };
 
-    // Listen for compare stack transformations inside Products.jsx to animate layout badges
     const handleAiStackSync = (e) => {
       setCompareCount(e.detail || 0);
     };
@@ -125,6 +116,7 @@ const Layout = ({ children }) => {
           wishlistIds.map(async (id) => {
             try {
               const response = await fetchProductsAPI({ search: id, limit: 1 });
+              // Safely extract rows from response structure
               return response?.rows?.[0] || response?.[0] || null;
             } catch { return null; }
           })
@@ -145,7 +137,6 @@ const Layout = ({ children }) => {
   const handleCartIconClick = (e) => {
     if (!token) {
       e.preventDefault();
-      // Fires global event for independent modal listener
       window.dispatchEvent(new CustomEvent("open-auth-modal"));
     }
   };
@@ -234,8 +225,6 @@ const Layout = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#E2ECE6] font-sans antialiased text-gray-900 relative">
-      
-      {/* NAVBAR */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-zinc-200/50 sticky top-0 z-50 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-baseline select-none group">
@@ -330,10 +319,8 @@ const Layout = ({ children }) => {
       <main className="flex-grow">{children}</main>
       <Footer />
 
-      {/* ⚡ FIXED: Rendered standalone so the modal listens to global custom event streams without parameter blocking */}
       <AuthModal />
 
-      {/* WISHLIST SIDE DRAWER */}
       {isWishlistOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setIsWishlistOpen(false)} />
@@ -423,7 +410,6 @@ const Layout = ({ children }) => {
         </div>
       )}
 
-      {/* ACCOUNT NAVIGATION DRAWER */}
       {isProfileOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setIsProfileOpen(false)} />

@@ -1,10 +1,9 @@
-// src/pages/Products.jsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { fetchProductsAPI } from "../api/product.api";
-import ProductCard from "../components/ProductCard"; // ◄── Verified pristine import path
+import ProductCard from "../components/ProductCard";
 import API from "../api/axios"; 
-import { SlidersHorizontal, Trash2, Star, CheckCircle, Bot, X, Upload, HelpCircle, Scale, Sparkles, Paperclip, Send, FileText, Camera } from "lucide-react";
+import { SlidersHorizontal, Trash2, Star, Bot, X, FileText, Camera, Paperclip, Send } from "lucide-react";
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,20 +19,17 @@ const Products = () => {
   const itemsLimit = 12;
   const chatEndRef = useRef(null);
 
-  // 🛡️ DYNAMIC SUFFIX SECURITY FOR MULTI-PROFILE ISOLATION
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const userSuffix = user?.email ? `_${user.email.toLowerCase()}` : "";
   const WISHLIST_KEY = `store_wishlist${userSuffix}`;
   const CHAT_LOG_KEY = `dg_chat_log${userSuffix}`;
   const WORKFLOW_KEY = `dg_ai_workflow_stage${userSuffix}`;
 
-  // 🛡️ STATE HUB SYNCED WITH URL PARAMETERS FOR PERSISTENT BACK-NAVIGATION
   const maxPrice = parseInt(searchParams.get("maxPrice") || "5000", 10);
   const selectedConcern = searchParams.get("concern") || "all";
   const minRating = parseInt(searchParams.get("minRating") || "0", 10);
   const selectedSkinType = searchParams.get("skinType") || "all";
 
-  // Helper function to update search parameters uniformly without wiping existing tracks
   const updateFilterParam = (key, value, clearPage = true) => {
     const newParams = new URLSearchParams(searchParams);
     if (clearPage) newParams.set("page", "1");
@@ -45,7 +41,6 @@ const Products = () => {
     setSearchParams(newParams);
   };
 
-  // 🛡️ ADVANCED CONSOLE DIAGNOSTIC INTERACTION STATES (Isolated per Profile)
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(() => {
     return localStorage.getItem("dg_ai_drawer_open") === "true";
   });
@@ -53,7 +48,6 @@ const Products = () => {
   const [quizStep, setQuizStep] = useState(0);
   const [quizScores, setQuizScores] = useState({ dry: 0, oily: 0, sensitive: 0 });
   
-  // Custom Dynamic Interaction Workflow Stages (Isolated per Profile)
   const [aiWorkflowStage, setAiWorkflowStage] = useState(() => {
     if (!user) return "ASK_SKIN_TYPE";
     return localStorage.getItem(WORKFLOW_KEY) || "ASK_SKIN_TYPE";
@@ -68,9 +62,8 @@ const Products = () => {
   const [chatInput, setChatInput] = useState("");
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploadType, setUploadType] = useState(""); // "prescription" or "bareface"
+  const [uploadType, setUploadType] = useState(""); 
   
-  // Gemini Transmission Hub Receptors
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiVerdict, setAiVerdict] = useState("");
   const [ingredientMatrix, setIngredientMatrix] = useState(null);
@@ -143,7 +136,6 @@ const Products = () => {
     }
   ];
 
-  // 🔄 Handle isolated loading changes dynamically on account updates
   useEffect(() => {
     if (!user) {
       setChatLog([{ sender: "bot", text: "Please log in to chat with your DermAI Consultant." }]);
@@ -157,7 +149,6 @@ const Products = () => {
     setAiWorkflowStage(localStorage.getItem(WORKFLOW_KEY) || "ASK_SKIN_TYPE");
   }, [userSuffix]);
 
-  // 📝 Save active changes to unique user slots exclusively
   useEffect(() => {
     if (user) {
       localStorage.setItem(CHAT_LOG_KEY, JSON.stringify(chatLog));
@@ -174,7 +165,6 @@ const Products = () => {
     }
   }, [aiWorkflowStage, WORKFLOW_KEY]);
 
-  // 🔄 UI Synergy: Automatically updates chat workflow when a user interacts with sidebar filter options
   useEffect(() => {
     if (user && selectedSkinType !== "all" && aiWorkflowStage === "ASK_SKIN_TYPE") {
       const label = skinTypes.find(t => t.id === selectedSkinType)?.label || selectedSkinType;
@@ -259,20 +249,36 @@ const Products = () => {
               } catch { return null; }
             })
           );
-          if (isMounted) { setProducts(batchData.filter(Boolean)); setTotalItems(batchData.filter(Boolean).length); }
+          if (isMounted) { 
+            const cleanBatch = batchData.filter(Boolean);
+            setProducts(cleanBatch); 
+            setTotalItems(cleanBatch.length); 
+          }
         } else {
           const fetchLimit = (!activeCategory && !currentSearch) ? 55000 : 5000;
           const responseData = await fetchProductsAPI({ page: 1, limit: fetchLimit, category: activeCategory, search: currentSearch });
-          if (isMounted) { setProducts(responseData?.rows || []); setTotalItems(responseData?.total || 50346); }
+          
+          if (isMounted) { 
+            // 🛡️ EXTRACT ROWS DEFENSIVELY FROM RESPONSE CONTAINER
+            const productArray = Array.isArray(responseData) ? responseData : (responseData?.rows || []);
+            setProducts(productArray); 
+            setTotalItems(responseData?.total || productArray.length); 
+          }
         }
-      } catch (err) { console.error(err); } finally { if (isMounted) setLoading(false); }
+      } catch (err) { 
+        console.error(err);
+        if (isMounted) setProducts([]);
+      } finally { 
+        if (isMounted) setLoading(false); 
+      }
     };
     syncCatalogData();
     return () => { isMounted = false; };
   }, [activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
 
-  // ⚡ MEMOIZED PROCESSING MATRIX: Evaluates currency and formats data seamlessly
   const displayedProductsList = useMemo(() => {
+    if (!Array.isArray(products)) return [];
+    
     return products.map(item => {
       const actualData = item?.product ? item.product : item;
       
@@ -366,7 +372,8 @@ const Products = () => {
         const response = await API.post("/ai/analyze-report", formData, { headers: { "Content-Type": "multipart/form-data" } });
         if (response.data?.detectedSkinType) {
           updateFilterParam("skinType", response.data.detectedSkinType);
-          setProducts(response.data.recommendations);
+          const recs = Array.isArray(response.data.recommendations) ? response.data.recommendations : (response.data.recommendations?.rows || []);
+          setProducts(recs);
           setAiWorkflowStage("READY");
           setChatLog(prev => [...prev, { sender: "bot", text: `Clinical parse complete! Identified profile context as ${response.data.detectedSkinType.toUpperCase()}. I have synchronized your matching database items in the catalog view.` }]);
         }
@@ -569,7 +576,6 @@ const Products = () => {
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 space-y-8 bg-[#E2ECE6] min-h-screen font-sans antialiased relative overflow-x-hidden">
       
-      {/* HEADER BAR METRICS COUNTER */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-300 pb-4">
         <div>
           <h1 className="text-2xl font-serif font-bold text-zinc-900">
@@ -596,10 +602,7 @@ const Products = () => {
         </div>
       </div>
 
-      {/* TWO-COLUMN GRID LAYOUT VIEWPORT */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-        
-        {/* SIDEBAR FILTER ENGINE WORKSPACE WALL */}
         <div className="col-span-1 bg-white p-6 rounded-3xl border border-zinc-200/80 shadow-sm space-y-6 sticky top-6 z-10">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
             <h2 className="text-xs font-black uppercase tracking-widest text-zinc-800 flex items-center gap-2">
@@ -608,13 +611,11 @@ const Products = () => {
             <button onClick={clearAllActiveFilters} className="text-zinc-400 hover:text-red-600 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
           
-          {/* BUDGET SLIDER */}
           <div className="space-y-2">
             <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-400"><span>Budget Cap</span><span className="text-emerald-800 font-mono">₹{maxPrice}</span></div>
             <input type="range" min="199" max="5000" step="100" value={maxPrice} onChange={(e) => updateFilterParam("maxPrice", Number(e.target.value))} className="w-full accent-emerald-800 h-1 bg-zinc-100 rounded-lg appearance-none cursor-pointer" />
           </div>
 
-          {/* FORMULATION COLLECTIONS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Formulation Collection</label>
             <div className="flex flex-col gap-1.5">
@@ -627,7 +628,6 @@ const Products = () => {
             </div>
           </div>
 
-          {/* SKINCARE CONCERNS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Skin Concern Target</label>
             <div className="flex flex-col gap-1.5">
@@ -643,7 +643,6 @@ const Products = () => {
             </div>
           </div>
 
-          {/* SKIN TYPE TRACKING MAPS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Skin Type Profile</label>
             <div className="flex flex-col gap-1.5">
@@ -659,7 +658,6 @@ const Products = () => {
             </div>
           </div>
 
-          {/* MIN RATING SCALE */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Minimum Rating</label>
             <div className="flex items-center gap-1 bg-zinc-50/60 p-2 rounded-xl border border-zinc-100 justify-between">
@@ -672,7 +670,6 @@ const Products = () => {
           </div>
         </div>
 
-        {/* FEED GRID MATRIX PRODUCTS */}
         <div className="lg:col-span-3">
           {loading ? (
             <div className="text-center py-32 text-xs tracking-widest text-emerald-800 font-black animate-pulse uppercase">Querying records...</div>
@@ -686,7 +683,6 @@ const Products = () => {
                 })}
               </div>
 
-              {/* SYSTEM PAGINATION ACTIONS NAVBAR */}
               {!loading && !showWishlistOnly && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-8 border-t border-zinc-300">
                   <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-2 text-xs font-bold border rounded-xl bg-white disabled:opacity-40 transition-all shadow-sm">Prev</button>
@@ -706,13 +702,8 @@ const Products = () => {
         </div>
       </div>
 
-      {/* 🤖 FIXED FULL-HEIGHT VERTICAL SLATE DRAWER SYSTEM REMOVING SCREEN MARGIN GAPING */}
       <div className={`fixed top-[-40px] bottom-0 right-0 h-[calc(100vh+10px)] w-full max-w-md bg-zinc-900 border-l border-zinc-800/80 text-zinc-100 shadow-2xl z-50 transition-transform duration-300 ease-in-out transform flex flex-col justify-between ${isAiDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
-        
-        {/* UPPER CONVERSATIONAL SCROLL WINDOW BLOCK */}
         <div className="p-0 overflow-y-auto max-h-[calc(100vh-100px)] flex-1 custom-scrollbar">
-          
-          {/* 🛡️ FIXED BOT HEADER COMPONENT BAR AT VIEWPORT BOUNDARY LIMITS */}
           <div className="sticky top-0 bg-zinc-950 p-6 border-b border-zinc-800/80 flex items-center justify-between z-20 shadow-md">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-emerald-950/80 rounded-xl border border-emerald-800/40">
@@ -736,14 +727,12 @@ const Products = () => {
                 }`}>
                   <p className="mb-2 whitespace-pre-line">{chat.text}</p>
 
-                  {/* Appends definitive localized backstage choice analysis right above table matrix */}
                   {chat.finalAnalysisText && (
                     <p className="my-3 text-[11px] bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-800/30 font-medium leading-relaxed text-zinc-200">
                       ✦ {chat.finalAnalysisText}
                     </p>
                   )}
 
-                  {/* 📊 MATRIX GRID CONTAINER REMOVING STACKED NAMES SEGMENTS */}
                   {chat.isMatrix && chat.rawMatrixData && (
                     <div className="overflow-x-auto border border-zinc-700 rounded-xl mt-3 bg-zinc-950 shadow-inner animate-fadeIn">
                       <table className="w-full text-[11px] text-left border-collapse table-fixed">
@@ -799,7 +788,6 @@ const Products = () => {
                     </div>
                   )}
 
-                  {/* Interactive Links Chips generation mappings */}
                   {chat.links && chat.links.length > 0 && (
                     <div className="flex flex-col gap-1.5 pt-3 mt-2 border-t border-zinc-700/50">
                       <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Suggested Products:</p>
@@ -847,7 +835,6 @@ const Products = () => {
           </div>
         </div>
 
-        {/* 📋 CHAT BOX CONSOLE MOUNT BOX ENCASED AT BASE */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950/95 shadow-inner z-10">
           {uploadedFile && (
             <div className="mb-3 p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between text-xs text-zinc-300 shadow-sm animate-fadeIn">

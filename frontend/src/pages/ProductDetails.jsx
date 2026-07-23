@@ -1,8 +1,7 @@
-// src/pages/ProductDetails.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingBag, CreditCard, Heart, Plus, Minus, ShieldCheck, Truck, RefreshCw } from "lucide-react";
-import { fetchProductByIdAPI } from "../api/product.api"; // 🟢 Ensure you have or call your direct by-ID function
+import { fetchProductByIdAPI } from "../api/product.api";
 import { updateCartItemAPI } from "../api/cart.api";
 import { useAuth } from "../context/AuthContext";
 
@@ -28,18 +27,8 @@ const ProductDetails = () => {
     const loadProductData = async () => {
       setLoading(true);
       try {
-        // 🟢 DIRECT FIX: Fetch directly by URL route /api/products/:id instead of generic search query
-        let foundProduct = null;
-        if (fetchProductByIdAPI) {
-          foundProduct = await fetchProductByIdAPI(id);
-        } else {
-          // Fallback direct endpoint fetch
-          const res = await fetch(`https://full-stack-pro-dermaglow-1.onrender.com/api/products/${id}`);
-          if (res.ok) {
-            foundProduct = await res.json();
-          }
-        }
-
+        // Direct clean call via Axios Instance endpoint /api/products/:id
+        const foundProduct = await fetchProductByIdAPI(id);
         setProduct(foundProduct);
 
         if (foundProduct) {
@@ -56,7 +45,8 @@ const ProductDetails = () => {
           }
         }
       } catch (err) {
-        console.error("Error retrieving individual product records:", err);
+        console.error("Error retrieving individual product record:", err);
+        setProduct(null);
       } finally {
         setLoading(false);
       }
@@ -176,7 +166,6 @@ const ProductDetails = () => {
     );
   }
 
-  // Safe fallback if product wasn't found
   if (!product) {
     return (
       <div className="max-w-4xl mx-auto py-20 text-center space-y-4">

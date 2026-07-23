@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Sparkles, Droplet, Sun, Eye, ArrowRight, Heart } from "lucide-react";
@@ -39,9 +38,12 @@ const Home = () => {
     const loadMostLoved = async () => {
       try {
         const data = await fetchProductsAPI({ page: 1, limit: 3 });
-        setLovedProducts(data?.rows || data || []);
+        // Defensive array extraction for paginated data
+        const productList = Array.isArray(data) ? data : (data?.rows || data?.products || []);
+        setLovedProducts(productList);
       } catch (err) {
         console.error("Error retrieving trending product metrics:", err);
+        setLovedProducts([]);
       } finally {
         setLoading(false);
       }
@@ -65,7 +67,6 @@ const Home = () => {
     e.preventDefault();
     e.stopPropagation(); 
 
-    // 🛡️ SECURE GATE
     if (!token) {
       window.dispatchEvent(new CustomEvent("open-auth-modal"));
       return;
@@ -136,13 +137,14 @@ const Home = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {lovedProducts.map((item) => {
-              const isLiked = wishlist.includes(item.product_id);
+              const productId = item.product_id || item.id;
+              const isLiked = wishlist.includes(productId);
               return (
-                <div key={item.product_id} className="bg-white border border-zinc-200/60 p-4 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group">
-                  <button onClick={(e) => handleWishlistToggle(e, item.product_id)} className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-red-500 transition-colors shadow-sm">
+                <div key={productId} className="bg-white border border-zinc-200/60 p-4 rounded-2xl flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group">
+                  <button onClick={(e) => handleWishlistToggle(e, productId)} className="absolute top-4 right-4 z-10 p-2.5 rounded-full bg-white/80 backdrop-blur-sm text-zinc-400 hover:text-red-500 transition-colors shadow-sm">
                     <Heart className={`h-4 w-4 pointer-events-none ${isLiked && token ? "fill-red-500 text-red-500" : "text-zinc-400"}`} />
                   </button>
-                  <Link to={`/product/${item.product_id}`} className="block">
+                  <Link to={`/product/${productId}`} className="block">
                     <div className="w-full bg-zinc-50 rounded-xl overflow-hidden mb-3 p-4 flex items-center justify-center h-48">
                       <img src={item.image_url || "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400"} alt={item.product_name} className="h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400"; }} />
                     </div>
