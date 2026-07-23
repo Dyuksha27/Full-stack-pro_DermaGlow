@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { fetchProductsAPI } from "../api/product.api";
-import ProductCard from "../components/ProductCard"; // ◄── Verified pristine import path
+import ProductCard from "../components/ProductCard";
 import API from "../api/axios"; 
 import { SlidersHorizontal, Trash2, Star, CheckCircle, Bot, X, Upload, HelpCircle, Scale, Sparkles, Paperclip, Send, FileText, Camera } from "lucide-react";
 
@@ -69,7 +69,7 @@ const Products = () => {
         isInstructionsCard: true,
         text: "System initialization guidelines compiled."
       },
-      { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
+      { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we'll analyze it for you)" }
     ];
   });
   const [chatInput, setChatInput] = useState("");
@@ -160,7 +160,7 @@ const Products = () => {
     const savedLog = localStorage.getItem(CHAT_LOG_KEY);
     setChatLog(savedLog ? JSON.parse(savedLog) : [
       { sender: "bot", isInstructionsCard: true, text: "System initialization guidelines compiled." },
-      { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
+      { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we'll analyze it for you)" }
     ]);
     setAiWorkflowStage(localStorage.getItem(WORKFLOW_KEY) || "ASK_SKIN_TYPE");
   }, [userSuffix]);
@@ -182,7 +182,7 @@ const Products = () => {
     }
   }, [aiWorkflowStage, WORKFLOW_KEY]);
 
-  // 🔄 UI Synergy: Automatically updates chat workflow when a user interacts with sidebar filter options
+  // 🔄 UI Synergy: Automatically updates chat workflow when user interacts with sidebar filter options
   useEffect(() => {
     if (user && selectedSkinType !== "all" && aiWorkflowStage === "ASK_SKIN_TYPE") {
       const label = skinTypes.find(t => t.id === selectedSkinType)?.label || selectedSkinType;
@@ -230,7 +230,7 @@ const Products = () => {
       setAiWorkflowStage("ASK_SKIN_TYPE");
       setChatLog([
         { sender: "bot", isInstructionsCard: true, text: "System initialization guidelines compiled." },
-        { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
+        { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we'll analyze it for you)" }
       ]);
     }
   };
@@ -249,6 +249,7 @@ const Products = () => {
     return () => window.removeEventListener("toggle-ai-drawer", handleToggleEvent);
   }, []);
 
+  // 🌐 DIRECT SERVER-SIDE PAGINATION FETCH
   useEffect(() => {
     let isMounted = true;
     const syncCatalogData = async () => {
@@ -268,19 +269,35 @@ const Products = () => {
               } catch { return null; }
             })
           );
-          if (isMounted) { setProducts(batchData.filter(Boolean)); setTotalItems(batchData.filter(Boolean).length); }
+          if (isMounted) { 
+            const filteredWishlist = batchData.filter(Boolean);
+            setProducts(filteredWishlist); 
+            setTotalItems(filteredWishlist.length); 
+          }
         } else {
-          const fetchLimit = (!activeCategory && !currentSearch) ? 55000 : 5000;
-          const responseData = await fetchProductsAPI({ page: 1, limit: fetchLimit, category: activeCategory, search: currentSearch });
-          if (isMounted) { setProducts(responseData?.rows || []); setTotalItems(responseData?.total || 50346); }
+          // Pass currentPage and itemsLimit directly to API
+          const responseData = await fetchProductsAPI({ 
+            page: currentPage, 
+            limit: itemsLimit, 
+            category: activeCategory, 
+            search: currentSearch 
+          });
+          if (isMounted) { 
+            setProducts(responseData?.rows || []); 
+            setTotalItems(responseData?.total || 0); 
+          }
         }
-      } catch (err) { console.error(err); } finally { if (isMounted) setLoading(false); }
+      } catch (err) { 
+        console.error(err); 
+      } finally { 
+        if (isMounted) setLoading(false); 
+      }
     };
     syncCatalogData();
     return () => { isMounted = false; };
-  }, [activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
+  }, [currentPage, itemsLimit, activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
 
-  // ⚡ MEMOIZED PROCESSING MATRIX: Evaluates currency and formats data seamlessly
+  // ⚡ MEMOIZED PROCESSING MATRIX
   const displayedProductsList = useMemo(() => {
     return products.map(item => {
       const actualData = item?.product ? item.product : item;
@@ -321,11 +338,8 @@ const Products = () => {
     });
   }, [products, maxPrice, minRating, selectedConcern, selectedSkinType]);
 
-  const totalPages = Math.ceil(displayedProductsList.length / itemsLimit) || 1;
-  const startIndex = (currentPage - 1) * itemsLimit;
-  const currentPagedProductsList = useMemo(() => {
-    return displayedProductsList.slice(startIndex, startIndex + itemsLimit);
-  }, [displayedProductsList, startIndex, itemsLimit]);
+  // Calculate total pages from backend database count
+  const totalPages = Math.ceil(totalItems / itemsLimit) || 1;
 
   const handleSendMessageStream = async () => {
     if (!user) return;
@@ -401,7 +415,7 @@ const Products = () => {
           setChatLog(prev => [...prev, { sender: "bot", text: response.data.reply }]);
         }
       } catch (err) {
-        console.warn("Backend /compare endpoint returned a 404/500, executing matching filters locally:", err);
+        console.warn("Backend /compare endpoint returned an error, executing matching filters locally:", err);
         
         let targetIntroNames = "Here is the comparison of ";
         const compiledGridRows = compareStack.map((item, idx) => {
@@ -600,7 +614,7 @@ const Products = () => {
             </button>
           )}
           <span className="text-xs bg-white text-zinc-800 px-4 py-2 rounded-xl font-bold shadow-sm border border-zinc-200">
-            {displayedProductsList.length.toLocaleString()} Products Filtered
+            {totalItems.toLocaleString()} Products Total
           </span>
         </div>
       </div>
@@ -688,7 +702,7 @@ const Products = () => {
           ) : (
             <div className="space-y-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {currentPagedProductsList.map((item, index) => {
+                {displayedProductsList.map((item, index) => {
                   const targetData = item?.product ? item.product : item;
                   const isStaged = compareStack.some(c => (c?.product?.product_id || c?.product_id || c?.id) === (targetData?.product_id || item?.id));
                   return <ProductCard key={targetData?.product_id || item?.id || index} product={item} onToggleCompare={handleToggleCompare} isStaged={isStaged} />;
@@ -715,13 +729,12 @@ const Products = () => {
         </div>
       </div>
 
-      {/* 🤖 FIXED FULL-HEIGHT VERTICAL SLATE DRAWER SYSTEM REMOVING SCREEN MARGIN GAPING */}
+      {/* 🤖 FIXED FULL-HEIGHT VERTICAL SLATE DRAWER SYSTEM */}
       <div className={`fixed top-(-10) bottom-0 right-0 h-screen w-full max-w-md bg-zinc-900 border-l border-zinc-800/80 text-zinc-100 shadow-2xl z-50 transition-transform duration-300 ease-in-out transform flex flex-col justify-between ${isAiDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
         
         {/* UPPER CONVERSATIONAL SCROLL WINDOW BLOCK */}
         <div className="p-0 overflow-y-auto max-h-[calc(100vh-100px)] flex-1 custom-scrollbar">
           
-          {/* 🛡️ FIXED BOT HEADER COMPONENT BAR AT VIEWPORT BOUNDARY LIMITS */}
           <div className="sticky top-0 bg-zinc-950 p-6 border-b border-zinc-800/80 flex items-center justify-between z-20 shadow-md">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-emerald-950/80 rounded-xl border border-emerald-800/40">
@@ -737,7 +750,6 @@ const Products = () => {
 
           <div className="p-6 pt-4 space-y-4">
             {chatLog.map((chat, idx) => {
-              {/* 🟢 CARD RENDER: Catch instructions flag and output high-contrast guide panel block */}
               if (chat.isInstructionsCard) {
                 return (
                   <div key={idx} className="w-full bg-white rounded-2xl p-5 border border-zinc-200 text-zinc-800 shadow-xl animate-fadeIn space-y-4 my-2">
@@ -774,14 +786,12 @@ const Products = () => {
                   }`}>
                     <p className="mb-2 whitespace-pre-line">{chat.text}</p>
 
-                    {/* Appends definitive localized backstage choice analysis right above table matrix */}
                     {chat.finalAnalysisText && (
                       <p className="my-3 text-[11px] bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-800/30 font-medium leading-relaxed text-zinc-200">
                         ✦ {chat.finalAnalysisText}
                       </p>
                     )}
 
-                    {/* 📊 MATRIX GRID CONTAINER REMOVING STACKED NAMES SEGMENTS */}
                     {chat.isMatrix && chat.rawMatrixData && (
                       <div className="overflow-x-auto border border-zinc-700 rounded-xl mt-3 bg-zinc-950 shadow-inner animate-fadeIn">
                         <table className="w-full text-[11px] text-left border-collapse table-fixed">
@@ -837,7 +847,6 @@ const Products = () => {
                       </div>
                     )}
 
-                    {/* Interactive Links Chips generation mappings */}
                     {chat.links && chat.links.length > 0 && (
                       <div className="flex flex-col gap-1.5 pt-3 mt-2 border-t border-zinc-700/50">
                         <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Suggested Products:</p>
@@ -886,7 +895,7 @@ const Products = () => {
           </div>
         </div>
 
-        {/* 📋 CHAT BOX CONSOLE MOUNT BOX ENCASED AT BASE */}
+        {/* CHAT INPUT MOUNT */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950/95 shadow-inner z-10">
           {uploadedFile && (
             <div className="mb-3 p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between text-xs text-zinc-300 shadow-sm animate-fadeIn">
