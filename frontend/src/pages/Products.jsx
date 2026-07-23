@@ -230,6 +230,7 @@ const Products = () => {
     return () => window.removeEventListener("toggle-ai-drawer", handleToggleEvent);
   }, []);
 
+  // 🚀 SERVER-SIDE PAGINATION SYNC (Fetches exactly 12 items for active page)
   useEffect(() => {
     let isMounted = true;
     const syncCatalogData = async () => {
@@ -255,13 +256,18 @@ const Products = () => {
             setTotalItems(cleanBatch.length); 
           }
         } else {
-          const fetchLimit = (!activeCategory && !currentSearch) ? 55000 : 5000;
-          const responseData = await fetchProductsAPI({ page: 1, limit: fetchLimit, category: activeCategory, search: currentSearch });
+          // ✅ Pass page & limit to Express/Neon backend
+          const responseData = await fetchProductsAPI({ 
+            page: currentPage, 
+            limit: itemsLimit, 
+            category: activeCategory, 
+            search: currentSearch 
+          });
           
           if (isMounted) { 
-            // 🛡️ EXTRACT ROWS DEFENSIVELY FROM RESPONSE CONTAINER
             const productArray = Array.isArray(responseData) ? responseData : (responseData?.rows || []);
             setProducts(productArray); 
+            // ✅ Read totalCount directly (50,346)
             setTotalItems(responseData?.total || productArray.length); 
           }
         }
@@ -274,7 +280,7 @@ const Products = () => {
     };
     syncCatalogData();
     return () => { isMounted = false; };
-  }, [activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
+  }, [currentPage, activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
 
   const displayedProductsList = useMemo(() => {
     if (!Array.isArray(products)) return [];
@@ -318,11 +324,9 @@ const Products = () => {
     });
   }, [products, maxPrice, minRating, selectedConcern, selectedSkinType]);
 
-  const totalPages = Math.ceil(displayedProductsList.length / itemsLimit) || 1;
-  const startIndex = (currentPage - 1) * itemsLimit;
-  const currentPagedProductsList = useMemo(() => {
-    return displayedProductsList.slice(startIndex, startIndex + itemsLimit);
-  }, [displayedProductsList, startIndex, itemsLimit]);
+  // 📊 Calculate Total Pages using total database items (50,346 / 12 = 4,196 pages)
+  const totalPages = Math.ceil(totalItems / itemsLimit) || 1;
+  const currentPagedProductsList = displayedProductsList;
 
   const handleSendMessageStream = async () => {
     if (!user) return;
@@ -597,7 +601,7 @@ const Products = () => {
             </button>
           )}
           <span className="text-xs bg-white text-zinc-800 px-4 py-2 rounded-xl font-bold shadow-sm border border-zinc-200">
-            {displayedProductsList.length.toLocaleString()} Products Filtered
+            {totalItems.toLocaleString()} Products Total
           </span>
         </div>
       </div>
