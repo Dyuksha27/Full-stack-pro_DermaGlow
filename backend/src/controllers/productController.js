@@ -38,13 +38,20 @@ export const getProducts = async (req, res) => {
     paginationValues.push(parsedOffset);
     const offsetPlaceholder = `$${paginationValues.length}`;
 
-    // 🟢 SECURE FIX: Queries your precise 'price' schema definitions cleanly
     const rowsQuery = `SELECT * FROM products${whereClause} ORDER BY product_name LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`;
     const dataResult = await pool.query(rowsQuery, paginationValues);
 
+    // Format rows to ensure numeric prices and default stock counts exist
+    const formattedRows = dataResult.rows.map((product) => ({
+      ...product,
+      price: product.price ? Number(product.price) : 0,
+      stock: product.stock ?? product.inventory ?? 50,
+      inStock: true,
+    }));
+
     res.json({
       total: totalCount,
-      rows: dataResult.rows
+      rows: formattedRows
     });
 
   } catch (err) {
@@ -59,10 +66,28 @@ export const getProducts = async (req, res) => {
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("SELECT * FROM products WHERE product_id=$1", [id]);
-    if (!result.rows.length) return res.status(404).json({ message: "Not found" });
-    res.json(result.rows[0]);
+
+    // Checks matching product_id string or id column if numeric
+    const result = await pool.query(
+      "SELECT * FROM products WHERE product_id = $1 OR id::text = $1", 
+      [id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const product = result.rows[0];
+
+    // Formats price as Number and defaults stock if column is null/undefined in DB
+    res.json({
+      ...product,
+      price: product.price ? Number(product.price) : 0,
+      stock: product.stock ?? product.inventory ?? 50,
+      inStock: true
+    });
   } catch (err) {
+    console.error("Error in getProductById:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
@@ -100,7 +125,7 @@ export const getAdminSalesMetrics = async (req, res) => {
  */
 export const addNewProduct = async (req, res) => {
   try {
-    const { product_name, price, category } = req.body;
+    const { product_name, price, category, stock } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: "Product image asset upload is mandatory." });
@@ -126,13 +151,14 @@ export const addNewProduct = async (req, res) => {
     const cloudSecureImageUrl = await uploadToCloudinary();
 
     const newProduct = await pool.query(
-      "INSERT INTO products (product_id, product_name, price, image_url, category) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      "INSERT INTO products (product_id, product_name, price, image_url, category, stock) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
       [
         'sku_' + Date.now(),
         product_name.trim(), 
         Number(price),
         cloudSecureImageUrl, 
-        category?.trim() || "Skincare"
+        category?.trim() || "Skincare",
+        stock ? Number(stock) : 50
       ]
     );
 
@@ -144,4 +170,4 @@ export const addNewProduct = async (req, res) => {
     console.error("❌ Product Insertion Failure:", err.message);
     res.status(500).json({ error: "Database rejected catalog entry manifest." });
   }
-}; // 🟢 FIXED: Removed the stray closing bracket that caused the server crash
+};
