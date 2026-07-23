@@ -1,11 +1,13 @@
 import API from "./axios";
 
-export const fetchProductsAPI = async ({ page = 1, limit = 12, category = "", search = "" }) => {
+/**
+ * 📦 Fetches paginated products with category/search filters: /api/products
+ */
+export const fetchProductsAPI = async ({ page = 1, limit = 12, category = "", search = "" } = {}) => {
   try {
     const response = await API.get("/products", {
       params: { page, limit, category, search }
     });
-    // Returns the entire payload container object containing both { total, rows }
     return response.data; 
   } catch (error) {
     console.error("Error in fetchProductsAPI:", error.message);

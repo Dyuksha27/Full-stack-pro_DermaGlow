@@ -1,4 +1,3 @@
-// src/api/axios.js
 import axios from "axios";
 
 // 🚀 DYNAMIC BASE URL:
@@ -39,7 +38,7 @@ API.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      delete config.headers.Authorization; // Clear zombie headers completely
+      delete config.headers.Authorization;
     }
     return config;
   },
