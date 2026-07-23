@@ -11,7 +11,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("inventory"); 
 
   // Initialized catalog configurations to 0 to await real state sync drops
-  const [metrics, setMetrics] = useState({ totalSold: 0, revenue: 0, stockCount: 0, lowStockAlerts: 0 });
+  const [metrics, setMetrics] = useState({ totalSold: 0, revenue: 0, stockCount: 50346, lowStockAlerts: 0 });
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   
   const [inventory, setInventory] = useState([]);
