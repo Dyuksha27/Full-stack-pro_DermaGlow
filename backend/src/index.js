@@ -32,7 +32,6 @@ const corsOptions = {
     if (isAllowed) {
       return callback(null, true);
     } else {
-      // Return false instead of throwing an Error object to prevent 500 response without CORS headers
       return callback(null, false);
     }
   },
@@ -41,10 +40,8 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
+// Applies CORS (including preflight OPTIONS) globally to all endpoints
 app.use(cors(corsOptions));
-
-// Explicitly handle HTTP OPTIONS preflight checks for all routes
-app.options("*", cors(corsOptions));
 
 app.use(express.json());
 app.use(cookieParser());
@@ -67,7 +64,6 @@ app.get("/", (req, res) => {
 app.use("/api/products", productRoutes);
 
 // 🛡️ GLOBAL ERROR HANDLER
-// Ensures server errors respond with valid JSON so CORS headers remain intact
 app.use((err, req, res, next) => {
   console.error("🔥 Global Server Error:", err.stack || err.message);
   res.status(err.status || 500).json({
