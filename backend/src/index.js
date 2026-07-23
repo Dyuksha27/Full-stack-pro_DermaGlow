@@ -19,13 +19,33 @@ import wishlistRoutes from "./routes/wishlistRoutes.js";
 
 const app = express();
 
-// OPTIMIZED CORS: Authorize cookie transfers with credentials set to true
+// Allowed Origins for production Vercel frontend and local development
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://full-stack-pro-derma-glow-aqs4j9x0f-dyuksha27s-projects.vercel.app"
+];
+
+// OPTIMIZED DYNAMIC CORS
 app.use(
-  cors({
-    origin: "http://localhost:5173", 
-    credentials: true,
-  })
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+      
+      // Match exact origins or any vercel.app preview URL for your project
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+      
+      return callback(new Error("Not allowed by CORS policy"));
+    },
+    credentials: true,
+  })
 );
+
 app.use(express.json());
 
 // Router Gateways
@@ -39,22 +59,22 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/uploads", express.static("uploads"));
 
 app.get("/", (req, res) => {
-  res.json({ message: "DermaGlow API Running 🚀" });
+  res.json({ message: "DermaGlow API Running 🚀" });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ message: "Route not found" });
+  res.status(404).json({ message: "Route not found" });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("🔥 Error:", err);
-  res.status(500).json({ message: "Internal Server Error" });
+  console.error("🔥 Error:", err);
+  res.status(500).json({ message: err.message || "Internal Server Error" });
 });
 
 const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+  console.log(`🚀 Server running on port ${port}`);
 });
