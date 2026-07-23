@@ -8,9 +8,9 @@ export const getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 12, category, search } = req.query;
     
-    // Parse limit directly without capping at 100 items
+    // 🛡️ SAFE CAP: Ensures limit is between 1 and 100 to protect server memory
     const rawLimit = parseInt(limit, 10) || 12;
-    const parsedLimit = Math.max(rawLimit, 1); // Ensures limit is at least 1
+    const parsedLimit = Math.min(Math.max(rawLimit, 1), 100); 
     const parsedOffset = (parseInt(page, 10) - 1) * parsedLimit;
 
     let conditions = [];
@@ -27,7 +27,6 @@ export const getProducts = async (req, res) => {
       filterValues.push(`%${search.trim()}%`);
       const idx = filterValues.length;
       
-      // ✅ Safely cast product_id and product_name (avoiding non-existent 'id' columns)
       conditions.push(
         `(product_name ILIKE $${idx} OR product_id::text ILIKE $${idx} OR category ILIKE $${idx})`
       );
@@ -35,12 +34,12 @@ export const getProducts = async (req, res) => {
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
-    // 1. Fetch Total Count
+    // 1. Fetch Total Count of ALL matching items in DB
     const countQuery = `SELECT COUNT(*) FROM products${whereClause}`;
     const countResult = await pool.query(countQuery, filterValues);
     const totalCount = parseInt(countResult.rows[0].count, 10);
 
-    // 2. Fetch Paginated Data
+    // 2. Fetch Paginated Subset for current page
     const paginationValues = [...filterValues];
     paginationValues.push(parsedLimit);
     const limitPlaceholder = `$${paginationValues.length}`;
@@ -71,13 +70,12 @@ export const getProducts = async (req, res) => {
 };
 
 /**
- * 🔍 PUBLIC DETAIL CONTROLLER: Pulls context properties for a designated SKU identifier
+ * 🔍 PUBLIC DETAIL CONTROLLER
  */
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Safe query matching product_id
     const result = await pool.query(
       "SELECT * FROM products WHERE product_id = $1 OR product_id::text = $1", 
       [id]
