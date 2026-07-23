@@ -2,13 +2,13 @@ import { pool } from "../config/db.js";
 import cloudinary from "../config/cloudinary.js"; 
 
 /**
- * 🛒 PUBLIC READ CONTROLLER: Fetches paginated products filtered by text search or category parameters
+ * 🛒 PUBLIC READ CONTROLLER: Fetches paginated products filtered by text search, category, or skin type parameters
  */
 export const getProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 12, category, search } = req.query;
+    const { page = 1, limit = 12, category, search, skinType, minRating, maxPrice, concern } = req.query;
     
-    // 🛡️ SAFE CAP: Ensures limit is between 1 and 100 to protect server memory
+    // 🛡️ SAFE CAP: Parses incoming page/limit parameters and defaults to 12
     const rawLimit = parseInt(limit, 10) || 12;
     const parsedLimit = Math.min(Math.max(rawLimit, 1), 100); 
     const parsedOffset = (parseInt(page, 10) - 1) * parsedLimit;
@@ -26,10 +26,33 @@ export const getProducts = async (req, res) => {
     if (search && search.trim() !== "") {
       filterValues.push(`%${search.trim()}%`);
       const idx = filterValues.length;
-      
       conditions.push(
         `(product_name ILIKE $${idx} OR product_id::text ILIKE $${idx} OR category ILIKE $${idx})`
       );
+    }
+
+    // Filter by Skin Type
+    if (skinType && skinType !== "all") {
+      filterValues.push(`%${skinType.trim()}%`);
+      conditions.push(`skin_type ILIKE $${filterValues.length}`);
+    }
+
+    // Filter by Concern
+    if (concern && concern !== "all") {
+      filterValues.push(`%${concern.trim()}%`);
+      conditions.push(`concern ILIKE $${filterValues.length}`);
+    }
+
+    // Filter by Maximum Price
+    if (maxPrice && !isNaN(Number(maxPrice))) {
+      filterValues.push(Number(maxPrice));
+      conditions.push(`price <= $${filterValues.length}`);
+    }
+
+    // Filter by Minimum Rating
+    if (minRating && !isNaN(Number(minRating)) && Number(minRating) > 0) {
+      filterValues.push(Number(minRating));
+      conditions.push(`rating >= $${filterValues.length}`);
     }
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
@@ -41,6 +64,7 @@ export const getProducts = async (req, res) => {
 
     // 2. Fetch Paginated Subset for current page
     const paginationValues = [...filterValues];
+    
     paginationValues.push(parsedLimit);
     const limitPlaceholder = `$${paginationValues.length}`;
     
