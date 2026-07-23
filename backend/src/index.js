@@ -4,7 +4,9 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { pool } from "./config/db.js";
 
-// Load environment variables
+// 1. IMPORT YOUR PRODUCT ROUTES (Check path matches your folder structure!)
+import productRoutes from "./routes/productRoutes.js"; 
+
 dotenv.config();
 
 const app = express();
@@ -20,10 +22,8 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow non-browser requests (like Postman, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      // Allow localhost OR any Vercel domain (*.vercel.app)
       if (
         allowedOrigins.includes(origin) ||
         /\.vercel\.app$/.test(origin)
@@ -56,9 +56,8 @@ app.get("/", (req, res) => {
   res.json({ status: "DermaGlow API is running live!" });
 });
 
-// Import and mount your product routes here (adjust path if your router file differs)
-// import productRoutes from "./routes/productRoutes.js";
-// app.use("/api/products", productRoutes);
+// 2. MOUNT YOUR ROUTES HERE
+app.use("/api/products", productRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is listening on port ${PORT}`);
