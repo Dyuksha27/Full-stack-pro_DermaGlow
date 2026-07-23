@@ -1,60 +1,65 @@
-// backend/src/index.js
-import dotenv from "dotenv";
-dotenv.config();
-
-// Verify environmental secrets load properly into execution contexts
-console.log("JWT_ACCESS_SECRET =", process.env.JWT_ACCESS_SECRET);
-console.log("JWT_REFRESH_SECRET =", process.env.JWT_REFRESH_SECRET);
-
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+import { pool } from "./config/db.js";
 
-import productRoutes from "./routes/productRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
-import cartRoutes from "./routes/cartRoutes.js";
-import orderRoutes from "./routes/orderRoutes.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js";
-import wishlistRoutes from "./routes/wishlistRoutes.js";
+// Load environment variables
+dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// OPTIMIZED CORS: Authorize cookie transfers with credentials set to true
+// 🛡️ DYNAMIC CORS CONFIGURATION
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.CLIENT_URL
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173", 
+    origin: function (origin, callback) {
+      // Allow non-browser requests (like Postman, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost OR any Vercel domain (*.vercel.app)
+      if (
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS policy violation: Origin not allowed"), false);
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
+
 app.use(express.json());
+app.use(cookieParser());
 
-// Router Gateways
-app.use("/api/products", productRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/admin/products", adminRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-app.use("/uploads", express.static("uploads"));
+// Database connection health check
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("❌ Database connection error:", err.message);
+  } else {
+    console.log("✅ Connected to PostgreSQL database successfully at", res.rows[0].now);
+  }
+});
 
+// Basic test route
 app.get("/", (req, res) => {
-  res.json({ message: "DermaGlow API Running 🚀" });
+  res.json({ status: "DermaGlow API is running live!" });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ message: "Route not found" });
-});
+// Import and mount your product routes here (adjust path if your router file differs)
+// import productRoutes from "./routes/productRoutes.js";
+// app.use("/api/products", productRoutes);
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error("🔥 Error:", err);
-  res.status(500).json({ message: "Internal Server Error" });
-});
-
-const port = process.env.PORT || 3000;
-
-app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server is listening on port ${PORT}`);
 });
