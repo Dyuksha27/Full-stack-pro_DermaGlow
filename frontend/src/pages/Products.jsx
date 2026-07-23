@@ -1,9 +1,10 @@
+// src/pages/Products.jsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { fetchProductsAPI } from "../api/product.api";
-import ProductCard from "../components/ProductCard";
+import ProductCard from "../components/ProductCard"; // ◄── Verified pristine import path
 import API from "../api/axios"; 
-import { SlidersHorizontal, Trash2, Star, Bot, X, FileText, Camera, Paperclip, Send } from "lucide-react";
+import { SlidersHorizontal, Trash2, Star, CheckCircle, Bot, X, Upload, HelpCircle, Scale, Sparkles, Paperclip, Send, FileText, Camera } from "lucide-react";
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,17 +20,20 @@ const Products = () => {
   const itemsLimit = 12;
   const chatEndRef = useRef(null);
 
+  // 🛡️ DYNAMIC SUFFIX SECURITY FOR MULTI-PROFILE ISOLATION
   const user = JSON.parse(localStorage.getItem("user")) || null;
   const userSuffix = user?.email ? `_${user.email.toLowerCase()}` : "";
   const WISHLIST_KEY = `store_wishlist${userSuffix}`;
   const CHAT_LOG_KEY = `dg_chat_log${userSuffix}`;
   const WORKFLOW_KEY = `dg_ai_workflow_stage${userSuffix}`;
 
+  // 🛡️ STATE HUB SYNCED WITH URL PARAMETERS FOR PERSISTENT BACK-NAVIGATION
   const maxPrice = parseInt(searchParams.get("maxPrice") || "5000", 10);
   const selectedConcern = searchParams.get("concern") || "all";
   const minRating = parseInt(searchParams.get("minRating") || "0", 10);
   const selectedSkinType = searchParams.get("skinType") || "all";
 
+  // Helper function to update search parameters uniformly without wiping existing tracks
   const updateFilterParam = (key, value, clearPage = true) => {
     const newParams = new URLSearchParams(searchParams);
     if (clearPage) newParams.set("page", "1");
@@ -41,6 +45,7 @@ const Products = () => {
     setSearchParams(newParams);
   };
 
+  // 🛡️ ADVANCED CONSOLE DIAGNOSTIC INTERACTION STATES (Isolated per Profile)
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(() => {
     return localStorage.getItem("dg_ai_drawer_open") === "true";
   });
@@ -48,22 +53,31 @@ const Products = () => {
   const [quizStep, setQuizStep] = useState(0);
   const [quizScores, setQuizScores] = useState({ dry: 0, oily: 0, sensitive: 0 });
   
+  // Custom Dynamic Interaction Workflow Stages (Isolated per Profile)
   const [aiWorkflowStage, setAiWorkflowStage] = useState(() => {
     if (!user) return "ASK_SKIN_TYPE";
     return localStorage.getItem(WORKFLOW_KEY) || "ASK_SKIN_TYPE";
   });
+
+  // 🟢 IN-BOT INLINE INSTRUCTIONS INJECTED DIRECTLY AS THE INITIAL SYSTEM CONTEXT LOG BLOCK
   const [chatLog, setChatLog] = useState(() => {
     if (!user) return [{ sender: "bot", text: "Please log in to chat with your DermAI Consultant." }];
     const savedLog = localStorage.getItem(CHAT_LOG_KEY);
     return savedLog ? JSON.parse(savedLog) : [
+      {
+        sender: "bot",
+        isInstructionsCard: true,
+        text: "System initialization guidelines compiled."
+      },
       { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
     ];
   });
   const [chatInput, setChatInput] = useState("");
   const [isAttachmentMenuOpen, setIsAttachmentMenuOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploadType, setUploadType] = useState(""); 
+  const [uploadType, setUploadType] = useState(""); // "prescription" or "bareface"
   
+  // Gemini Transmission Hub Receptors
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiVerdict, setAiVerdict] = useState("");
   const [ingredientMatrix, setIngredientMatrix] = useState(null);
@@ -136,6 +150,7 @@ const Products = () => {
     }
   ];
 
+  // 🔄 Handle isolated loading changes dynamically on account updates
   useEffect(() => {
     if (!user) {
       setChatLog([{ sender: "bot", text: "Please log in to chat with your DermAI Consultant." }]);
@@ -144,11 +159,13 @@ const Products = () => {
     }
     const savedLog = localStorage.getItem(CHAT_LOG_KEY);
     setChatLog(savedLog ? JSON.parse(savedLog) : [
+      { sender: "bot", isInstructionsCard: true, text: "System initialization guidelines compiled." },
       { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
     ]);
     setAiWorkflowStage(localStorage.getItem(WORKFLOW_KEY) || "ASK_SKIN_TYPE");
   }, [userSuffix]);
 
+  // 📝 Save active changes to unique user slots exclusively
   useEffect(() => {
     if (user) {
       localStorage.setItem(CHAT_LOG_KEY, JSON.stringify(chatLog));
@@ -165,6 +182,7 @@ const Products = () => {
     }
   }, [aiWorkflowStage, WORKFLOW_KEY]);
 
+  // 🔄 UI Synergy: Automatically updates chat workflow when a user interacts with sidebar filter options
   useEffect(() => {
     if (user && selectedSkinType !== "all" && aiWorkflowStage === "ASK_SKIN_TYPE") {
       const label = skinTypes.find(t => t.id === selectedSkinType)?.label || selectedSkinType;
@@ -211,6 +229,7 @@ const Products = () => {
       localStorage.removeItem(WORKFLOW_KEY);
       setAiWorkflowStage("ASK_SKIN_TYPE");
       setChatLog([
+        { sender: "bot", isInstructionsCard: true, text: "System initialization guidelines compiled." },
         { sender: "bot", text: "Welcome to your DermAI Consultant! What is your skin type profile? (If you don't know, it's fine we've got you just say you don't we'll analyse it for you)" }
       ]);
     }
@@ -230,7 +249,6 @@ const Products = () => {
     return () => window.removeEventListener("toggle-ai-drawer", handleToggleEvent);
   }, []);
 
-  // 🚀 SERVER-SIDE PAGINATION SYNC (Fetches exactly 12 items for active page)
   useEffect(() => {
     let isMounted = true;
     const syncCatalogData = async () => {
@@ -250,41 +268,20 @@ const Products = () => {
               } catch { return null; }
             })
           );
-          if (isMounted) { 
-            const cleanBatch = batchData.filter(Boolean);
-            setProducts(cleanBatch); 
-            setTotalItems(cleanBatch.length); 
-          }
+          if (isMounted) { setProducts(batchData.filter(Boolean)); setTotalItems(batchData.filter(Boolean).length); }
         } else {
-          // ✅ Pass page & limit to Express/Neon backend
-          const responseData = await fetchProductsAPI({ 
-            page: currentPage, 
-            limit: itemsLimit, 
-            category: activeCategory, 
-            search: currentSearch 
-          });
-          
-          if (isMounted) { 
-            const productArray = Array.isArray(responseData) ? responseData : (responseData?.rows || []);
-            setProducts(productArray); 
-            // ✅ Read totalCount directly (50,346)
-            setTotalItems(responseData?.total || productArray.length); 
-          }
+          const fetchLimit = (!activeCategory && !currentSearch) ? 55000 : 5000;
+          const responseData = await fetchProductsAPI({ page: 1, limit: fetchLimit, category: activeCategory, search: currentSearch });
+          if (isMounted) { setProducts(responseData?.rows || []); setTotalItems(responseData?.total || 50346); }
         }
-      } catch (err) { 
-        console.error(err);
-        if (isMounted) setProducts([]);
-      } finally { 
-        if (isMounted) setLoading(false); 
-      }
+      } catch (err) { console.error(err); } finally { if (isMounted) setLoading(false); }
     };
     syncCatalogData();
     return () => { isMounted = false; };
-  }, [currentPage, activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
+  }, [activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
 
+  // ⚡ MEMOIZED PROCESSING MATRIX: Evaluates currency and formats data seamlessly
   const displayedProductsList = useMemo(() => {
-    if (!Array.isArray(products)) return [];
-    
     return products.map(item => {
       const actualData = item?.product ? item.product : item;
       
@@ -324,9 +321,11 @@ const Products = () => {
     });
   }, [products, maxPrice, minRating, selectedConcern, selectedSkinType]);
 
-  // 📊 Calculate Total Pages using total database items (50,346 / 12 = 4,196 pages)
-  const totalPages = Math.ceil(totalItems / itemsLimit) || 1;
-  const currentPagedProductsList = displayedProductsList;
+  const totalPages = Math.ceil(displayedProductsList.length / itemsLimit) || 1;
+  const startIndex = (currentPage - 1) * itemsLimit;
+  const currentPagedProductsList = useMemo(() => {
+    return displayedProductsList.slice(startIndex, startIndex + itemsLimit);
+  }, [displayedProductsList, startIndex, itemsLimit]);
 
   const handleSendMessageStream = async () => {
     if (!user) return;
@@ -359,7 +358,7 @@ const Products = () => {
         } catch (err) {
           console.error(err);
           setAiWorkflowStage("ASK_PRESCRIPTION");
-          setChatLog(prev => [...prev, { sender: "bot", text: "Got it! Let's get more context. Do you happen to have a medical prescription or clinical note available from a doctor? Choose below." }]);
+          setChatLog(prev => [...prev, { sender: "bot", text: "Let's capture your context accurately. Do you happen to have a medical prescription or clinical note available from a doctor? Choose below." }]);
         } finally {
           setIsAiLoading(false);
         }
@@ -376,8 +375,7 @@ const Products = () => {
         const response = await API.post("/ai/analyze-report", formData, { headers: { "Content-Type": "multipart/form-data" } });
         if (response.data?.detectedSkinType) {
           updateFilterParam("skinType", response.data.detectedSkinType);
-          const recs = Array.isArray(response.data.recommendations) ? response.data.recommendations : (response.data.recommendations?.rows || []);
-          setProducts(recs);
+          setProducts(response.data.recommendations);
           setAiWorkflowStage("READY");
           setChatLog(prev => [...prev, { sender: "bot", text: `Clinical parse complete! Identified profile context as ${response.data.detectedSkinType.toUpperCase()}. I have synchronized your matching database items in the catalog view.` }]);
         }
@@ -525,7 +523,7 @@ const Products = () => {
       } else if (lowInput.includes("oil") || lowInput.includes("greas") || lowInput.includes("shine")) {
         fallbackText = "I hear you, constantly chasing down that mid-day shine can be such a hassle. But don't worry, we can get your sebaceous balance back on track together! ✨ I scanned our dataset for lightweight, pore-clearing heroes that matify and regulate oil without drying you out. Take a look:";
       } else if (selectedSkinType !== "all") {
-        fallbackText = `You're doing great taking charge of your routine! I ran a custom search through our verified database specific to your ${selectedSkinType.toUpperCase()} skin type. These top-tier matches look beautiful for your skin goals right now:`;
+        fallbackText = `You're doing great taking charge of your routine! I ran a custom search search through our verified database specific to your ${selectedSkinType.toUpperCase()} skin type. These top-tier matches look beautiful for your skin goals right now:`;
       }
 
       setChatLog(prev => [...prev, {
@@ -580,6 +578,7 @@ const Products = () => {
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 space-y-8 bg-[#E2ECE6] min-h-screen font-sans antialiased relative overflow-x-hidden">
       
+      {/* HEADER BAR METRICS COUNTER */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-300 pb-4">
         <div>
           <h1 className="text-2xl font-serif font-bold text-zinc-900">
@@ -601,12 +600,15 @@ const Products = () => {
             </button>
           )}
           <span className="text-xs bg-white text-zinc-800 px-4 py-2 rounded-xl font-bold shadow-sm border border-zinc-200">
-            {totalItems.toLocaleString()} Products Total
+            {displayedProductsList.length.toLocaleString()} Products Filtered
           </span>
         </div>
       </div>
 
+      {/* TWO-COLUMN GRID LAYOUT VIEWPORT */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+        
+        {/* SIDEBAR FILTER ENGINE WORKSPACE WALL */}
         <div className="col-span-1 bg-white p-6 rounded-3xl border border-zinc-200/80 shadow-sm space-y-6 sticky top-6 z-10">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
             <h2 className="text-xs font-black uppercase tracking-widest text-zinc-800 flex items-center gap-2">
@@ -615,11 +617,13 @@ const Products = () => {
             <button onClick={clearAllActiveFilters} className="text-zinc-400 hover:text-red-600 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
           
+          {/* BUDGET SLIDER */}
           <div className="space-y-2">
             <div className="flex justify-between text-[10px] uppercase font-bold text-zinc-400"><span>Budget Cap</span><span className="text-emerald-800 font-mono">₹{maxPrice}</span></div>
             <input type="range" min="199" max="5000" step="100" value={maxPrice} onChange={(e) => updateFilterParam("maxPrice", Number(e.target.value))} className="w-full accent-emerald-800 h-1 bg-zinc-100 rounded-lg appearance-none cursor-pointer" />
           </div>
 
+          {/* FORMULATION COLLECTIONS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Formulation Collection</label>
             <div className="flex flex-col gap-1.5">
@@ -632,6 +636,7 @@ const Products = () => {
             </div>
           </div>
 
+          {/* SKINCARE CONCERNS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Skin Concern Target</label>
             <div className="flex flex-col gap-1.5">
@@ -647,6 +652,7 @@ const Products = () => {
             </div>
           </div>
 
+          {/* SKIN TYPE TRACKING MAPS */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Skin Type Profile</label>
             <div className="flex flex-col gap-1.5">
@@ -662,6 +668,7 @@ const Products = () => {
             </div>
           </div>
 
+          {/* MIN RATING SCALE */}
           <div className="space-y-2">
             <label className="text-[10px] uppercase font-bold text-zinc-400 block">Minimum Rating</label>
             <div className="flex items-center gap-1 bg-zinc-50/60 p-2 rounded-xl border border-zinc-100 justify-between">
@@ -674,6 +681,7 @@ const Products = () => {
           </div>
         </div>
 
+        {/* FEED GRID MATRIX PRODUCTS */}
         <div className="lg:col-span-3">
           {loading ? (
             <div className="text-center py-32 text-xs tracking-widest text-emerald-800 font-black animate-pulse uppercase">Querying records...</div>
@@ -687,6 +695,7 @@ const Products = () => {
                 })}
               </div>
 
+              {/* SYSTEM PAGINATION ACTIONS NAVBAR */}
               {!loading && !showWishlistOnly && totalPages > 1 && (
                 <div className="flex items-center justify-center gap-2 pt-8 border-t border-zinc-300">
                   <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-2 text-xs font-bold border rounded-xl bg-white disabled:opacity-40 transition-all shadow-sm">Prev</button>
@@ -706,8 +715,13 @@ const Products = () => {
         </div>
       </div>
 
-      <div className={`fixed top-[-40px] bottom-0 right-0 h-[calc(100vh+10px)] w-full max-w-md bg-zinc-900 border-l border-zinc-800/80 text-zinc-100 shadow-2xl z-50 transition-transform duration-300 ease-in-out transform flex flex-col justify-between ${isAiDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
+      {/* 🤖 FIXED FULL-HEIGHT VERTICAL SLATE DRAWER SYSTEM REMOVING SCREEN MARGIN GAPING */}
+      <div className={`fixed top-(-10) bottom-0 right-0 h-screen w-full max-w-md bg-zinc-900 border-l border-zinc-800/80 text-zinc-100 shadow-2xl z-50 transition-transform duration-300 ease-in-out transform flex flex-col justify-between ${isAiDrawerOpen ? "translate-x-0" : "translate-x-full"}`}>
+        
+        {/* UPPER CONVERSATIONAL SCROLL WINDOW BLOCK */}
         <div className="p-0 overflow-y-auto max-h-[calc(100vh-100px)] flex-1 custom-scrollbar">
+          
+          {/* 🛡️ FIXED BOT HEADER COMPONENT BAR AT VIEWPORT BOUNDARY LIMITS */}
           <div className="sticky top-0 bg-zinc-950 p-6 border-b border-zinc-800/80 flex items-center justify-between z-20 shadow-md">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-emerald-950/80 rounded-xl border border-emerald-800/40">
@@ -722,87 +736,120 @@ const Products = () => {
           </div>
 
           <div className="p-6 pt-4 space-y-4">
-            {chatLog.map((chat, idx) => (
-              <div key={idx} className={`flex flex-col w-full ${chat.sender === "user" ? "items-end" : "items-start"}`}>
-                <div className={`p-3.5 rounded-2xl text-xs leading-relaxed font-medium shadow-md w-full max-w-[94%] ${
-                  chat.sender === "user"
-                    ? "bg-gradient-to-br from-emerald-700 to-emerald-800 text-white rounded-tr-none border border-emerald-600/30 ml-auto max-w-[88%]"
-                    : "bg-zinc-800/90 text-zinc-100 rounded-tl-none border border-zinc-700/60 mr-auto"
-                }`}>
-                  <p className="mb-2 whitespace-pre-line">{chat.text}</p>
-
-                  {chat.finalAnalysisText && (
-                    <p className="my-3 text-[11px] bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-800/30 font-medium leading-relaxed text-zinc-200">
-                      ✦ {chat.finalAnalysisText}
-                    </p>
-                  )}
-
-                  {chat.isMatrix && chat.rawMatrixData && (
-                    <div className="overflow-x-auto border border-zinc-700 rounded-xl mt-3 bg-zinc-950 shadow-inner animate-fadeIn">
-                      <table className="w-full text-[11px] text-left border-collapse table-fixed">
-                        <thead>
-                          <tr className="bg-zinc-900 border-b border-zinc-700">
-                            <th className="p-2.5 font-bold text-emerald-400 border-r border-zinc-700 w-1/3 text-xs uppercase tracking-wider">Metrics</th>
-                            {chat.rawMatrixData.map((prod, pIdx) => (
-                              <th key={pIdx} className="p-2.5 font-bold text-zinc-100 border-r last:border-r-0 border-zinc-700 text-xs truncate leading-snug" title={prod.name}>
-                                {prod.name} {chat.winnerId === prod.id && <span className="text-emerald-400 block text-[9px] font-black tracking-widest uppercase mt-0.5">★ Winner Match</span>}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Brand</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 font-medium truncate">{prod.brand}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Rating</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-amber-400 font-bold font-mono">★ {prod.rating}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Skin Type</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 text-[10px] leading-tight font-medium" title={prod.target_skin_type}>{prod.target_skin_type}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Concern</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 text-[10px] leading-tight font-medium" title={prod.matching_concerns}>{prod.matching_concerns}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Fragrance-Free</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_fragrance_free ? "✅ Yes" : "❌ No"}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Paraben-Free</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_fragrance_free ? "✅ Yes" : "❌ No"}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Sulfate-Free</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_sulfate_free ? "✅ Yes" : "❌ No"}</td>)}
-                          </tr>
-                          <tr className="border-b border-zinc-800">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Alcohol-Free</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_alcohol_free ? "✅ Yes" : "❌ No"}</td>)}
-                          </tr>
-                          <tr className="bg-zinc-900/40">
-                            <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Price</td>
-                            {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-100 font-bold font-mono text-[11px]">₹{prod.price}</td>)}
-                          </tr>
-                        </tbody>
-                      </table>
+            {chatLog.map((chat, idx) => {
+              {/* 🟢 CARD RENDER: Catch instructions flag and output high-contrast guide panel block */}
+              if (chat.isInstructionsCard) {
+                return (
+                  <div key={idx} className="w-full bg-white rounded-2xl p-5 border border-zinc-200 text-zinc-800 shadow-xl animate-fadeIn space-y-4 my-2">
+                    <div className="flex items-center gap-2 pb-2.5 border-b border-zinc-100">
+                      <div className="p-1.5 bg-emerald-50 rounded-lg text-emerald-800"><HelpCircle className="h-4 w-4" /></div>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900">📘 How to Use DermAI Consultant</h3>
                     </div>
-                  )}
 
-                  {chat.links && chat.links.length > 0 && (
-                    <div className="flex flex-col gap-1.5 pt-3 mt-2 border-t border-zinc-700/50">
-                      <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Suggested Products:</p>
-                      {chat.links.map((link) => (
-                        <Link key={link.id} to={`/product/${link.id}`} className="inline-flex items-center gap-1 text-[11px] text-white underline font-bold hover:text-emerald-300">✦ {link.name}</Link>
-                      ))}
+                    <div className="space-y-2.5 text-[11px] leading-relaxed text-zinc-600">
+                      <p className="font-semibold text-zinc-900">DermAI can help you:</p>
+                      <ul className="space-y-1.5 pl-1">
+                        <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" /> <span>Compare skincare formulations side-by-side.</span></li>
+                        <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" /> <span>Explain dense active ingredient formulation chemical strings.</span></li>
+                        <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" /> <span>Recommend targeted fixes for acne, hyperpigmentation, dryness, and excess oil.</span></li>
+                        <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" /> <span>Build complete day and night routines calibrated to your parameters.</span></li>
+                      </ul>
+
+                      <div className="bg-zinc-50 border p-3 rounded-xl space-y-1 mt-2">
+                        <p className="font-bold text-zinc-900 text-[10px] uppercase tracking-wider text-emerald-800">✦ For Best Results:</p>
+                        <p>• Click **"Compare"** on up to 3 cards first, then type **"compare"** here to analyze them side-by-side.</p>
+                        <p>• Mention your specific active skin profiles and concerns.</p>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                );
+              }
+
+              return (
+                <div key={idx} className={`flex flex-col w-full ${chat.sender === "user" ? "items-end" : "items-start"}`}>
+                  <div className={`p-3.5 rounded-2xl text-xs leading-relaxed font-medium shadow-md w-full max-w-[94%] ${
+                    chat.sender === "user"
+                      ? "bg-gradient-to-br from-emerald-700 to-emerald-800 text-white rounded-tr-none border border-emerald-600/30 ml-auto max-w-[88%]"
+                      : "bg-zinc-800/90 text-zinc-100 rounded-tl-none border border-zinc-700/60 mr-auto"
+                  }`}>
+                    <p className="mb-2 whitespace-pre-line">{chat.text}</p>
+
+                    {/* Appends definitive localized backstage choice analysis right above table matrix */}
+                    {chat.finalAnalysisText && (
+                      <p className="my-3 text-[11px] bg-emerald-950/60 p-2.5 rounded-xl border border-emerald-800/30 font-medium leading-relaxed text-zinc-200">
+                        ✦ {chat.finalAnalysisText}
+                      </p>
+                    )}
+
+                    {/* 📊 MATRIX GRID CONTAINER REMOVING STACKED NAMES SEGMENTS */}
+                    {chat.isMatrix && chat.rawMatrixData && (
+                      <div className="overflow-x-auto border border-zinc-700 rounded-xl mt-3 bg-zinc-950 shadow-inner animate-fadeIn">
+                        <table className="w-full text-[11px] text-left border-collapse table-fixed">
+                          <thead>
+                            <tr className="bg-zinc-900 border-b border-zinc-700">
+                              <th className="p-2.5 font-bold text-emerald-400 border-r border-zinc-700 w-1/3 text-xs uppercase tracking-wider">Metrics</th>
+                              {chat.rawMatrixData.map((prod, pIdx) => (
+                                <th key={pIdx} className="p-2.5 font-bold text-zinc-100 border-r last:border-r-0 border-zinc-700 text-xs truncate leading-snug" title={prod.name}>
+                                  {prod.name} {chat.winnerId === prod.id && <span className="text-emerald-400 block text-[9px] font-black tracking-widest uppercase mt-0.5">★ Winner Match</span>}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Brand</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 font-medium truncate">{prod.brand}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Rating</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-amber-400 font-bold font-mono">★ {prod.rating}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Skin Type</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 text-[10px] leading-tight font-medium" title={prod.target_skin_type}>{prod.target_skin_type}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Concern</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-300 text-[10px] leading-tight font-medium" title={prod.matching_concerns}>{prod.matching_concerns}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Fragrance-Free</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_fragrance_free ? "✅ Yes" : "❌ No"}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Paraben-Free</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_fragrance_free ? "✅ Yes" : "❌ No"}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Sulfate-Free</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_sulfate_free ? "✅ Yes" : "❌ No"}</td>)}
+                            </tr>
+                            <tr className="border-b border-zinc-800">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Alcohol-Free</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 font-medium">{prod.is_alcohol_free ? "✅ Yes" : "❌ No"}</td>)}
+                            </tr>
+                            <tr className="bg-zinc-900/40">
+                              <td className="p-2 font-black text-zinc-400 border-r border-zinc-700">Price</td>
+                              {chat.rawMatrixData.map((prod, pIdx) => <td key={pIdx} className="p-2 text-zinc-100 font-bold font-mono text-[11px]">₹{prod.price}</td>)}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Interactive Links Chips generation mappings */}
+                    {chat.links && chat.links.length > 0 && (
+                      <div className="flex flex-col gap-1.5 pt-3 mt-2 border-t border-zinc-700/50">
+                        <p className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">Suggested Products:</p>
+                        {chat.links.map((link) => (
+                          <Link key={link.id} to={`/product/${link.id}`} className="inline-flex items-center gap-1 text-[11px] text-white underline font-bold hover:text-emerald-300">✦ {link.name}</Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {user && aiWorkflowStage === "ASK_PRESCRIPTION" && (
               <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-2xl p-4 text-center space-y-3 shadow-xl backdrop-blur-sm">
@@ -839,6 +886,7 @@ const Products = () => {
           </div>
         </div>
 
+        {/* 📋 CHAT BOX CONSOLE MOUNT BOX ENCASED AT BASE */}
         <div className="p-4 border-t border-zinc-800 bg-zinc-950/95 shadow-inner z-10">
           {uploadedFile && (
             <div className="mb-3 p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between text-xs text-zinc-300 shadow-sm animate-fadeIn">
