@@ -12,3 +12,16 @@ export const fetchProductsAPI = async ({ page = 1, limit = 12, category = "", se
     throw error;
   }
 };
+
+/**
+ * 🔍 Fetches a single product directly by its ID/SKU endpoint: /api/products/:id
+ */
+export const fetchProductByIdAPI = async (id) => {
+  try {
+    const response = await API.get(`/products/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error in fetchProductByIdAPI:", error.message);
+    throw error;
+  }
+};

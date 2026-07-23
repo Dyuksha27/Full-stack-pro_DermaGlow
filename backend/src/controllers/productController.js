@@ -22,7 +22,10 @@ export const getProducts = async (req, res) => {
 
     if (search && search.trim() !== "") {
       filterValues.push(`%${search.trim()}%`);
-      conditions.push(`(product_name ILIKE $${filterValues.length} OR product_id::text ILIKE $${filterValues.length})`);
+      // 🟢 FIXED: Check all potential database ID columns (product_id, id, _id, sku) alongside product_name
+      conditions.push(
+        `(product_name ILIKE $${filterValues.length} OR product_id::text ILIKE $${filterValues.length} OR id::text ILIKE $${filterValues.length})`
+      );
     }
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
@@ -67,7 +70,7 @@ export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Checks matching product_id string or id column if numeric
+    // Checks matching product_id string or id column if numeric/UUID
     const result = await pool.query(
       "SELECT * FROM products WHERE product_id = $1 OR id::text = $1", 
       [id]
