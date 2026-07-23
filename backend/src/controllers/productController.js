@@ -8,9 +8,9 @@ export const getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 12, category, search } = req.query;
     
-    // 🛡️ CAP MAXIMUM LIMIT (Prevents 55,000 limit from memory crashing Node/Postgres)
+    // Parse limit directly without capping at 100 items
     const rawLimit = parseInt(limit, 10) || 12;
-    const parsedLimit = Math.min(Math.max(rawLimit, 1), 100); // Caps limit safely between 1 and 100
+    const parsedLimit = Math.max(rawLimit, 1); // Ensures limit is at least 1
     const parsedOffset = (parseInt(page, 10) - 1) * parsedLimit;
 
     let conditions = [];
