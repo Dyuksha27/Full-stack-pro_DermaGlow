@@ -2,9 +2,9 @@
 import axios from "axios";
 
 // 🚀 DYNAMIC BASE URL:
-// Reads VITE_API_URL if defined (Vercel production/preview),
-// otherwise defaults to your Render production URL.
-const RAW_URL = import.meta.env.VITE_API_URL || "https://full-stack-pro-dermaglow-1.onrender.com";
+// Reads VITE_API_URL or VITE_API_BASE_URL if defined,
+// otherwise defaults directly to your Render production URL.
+const RAW_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "https://full-stack-pro-dermaglow-1.onrender.com";
 const API_BASE_URL = `${RAW_URL.replace(/\/$/, "")}/api`;
 
 const API = axios.create({
@@ -27,28 +27,19 @@ export const cancelAllInFlightRequests = () => {
 
 API.interceptors.request.use(
   (config) => {
-    const isTransitionLocked = localStorage.getItem("lock_switch_transition") === "true";
-
-    if (isTransitionLocked) {
-      const controller = new AbortController();
-      config.signal = controller.signal;
-      controller.abort();
-      return config;
-    }
-
     const controller = new AbortController();
     config.signal = config.signal || controller.signal;
     activeRequestControllers.set(config, controller);
 
     const rawToken = localStorage.getItem("token");
     
-    // 🛡️ NETWORK ROOT SANITIZER: Prevents sending "Bearer null" or "Bearer undefined" to your backend
+    // 🛡️ NETWORK ROOT SANITIZER: Prevents sending "Bearer null" or "Bearer undefined"
     const token = (rawToken && rawToken !== "null" && rawToken !== "undefined") ? rawToken : null;
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
-      delete config.headers.Authorization; // Clear any zombie headers completely
+      delete config.headers.Authorization; // Clear zombie headers completely
     }
     return config;
   },
@@ -67,22 +58,16 @@ API.interceptors.response.use(
       activeRequestControllers.delete(error.config);
     }
 
-    const isTransitionLocked = localStorage.getItem("lock_switch_transition") === "true";
-
-    if (axios.isCancel(error) || isTransitionLocked) {
+    if (axios.isCancel(error)) {
       return Promise.reject({
         ...error,
         __isTransitionAborted: true,
-        message: "Request suppressed cleanly during account identity sandbox transition swapping loop."
+        message: "Request suppressed cleanly."
       });
     }
 
     if (error.response?.status === 401) {
       console.warn("🛡️ Axios interceptor caught a 401. Yielding control to AuthContext state routers.");
-      
-      if (isTransitionLocked || window.location.search.includes("view=security")) {
-        return Promise.reject(error);
-      }
 
       localStorage.removeItem("token");
       localStorage.removeItem("user");
