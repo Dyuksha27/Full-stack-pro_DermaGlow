@@ -4,7 +4,6 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import { pool } from "./config/db.js";
 
-// 1. IMPORT YOUR PRODUCT ROUTES
 import productRoutes from "./routes/productRoutes.js"; 
 
 dotenv.config();
@@ -12,7 +11,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// 🛡️ DYNAMIC CORS CONFIGURATION
+// 1. BULLETPROOF CORS CONFIGURATION
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -22,25 +21,28 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow server-to-server requests or tools like Postman/cURL (no origin header)
+    // Allow tools/server-to-server (Postman, cURL)
     if (!origin) return callback(null, true);
 
+    // Matches localhost, allowed origins array, or ANY Vercel deployment domain (*.vercel.app)
     const isAllowed =
       allowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app") ||
       /\.vercel\.app$/.test(origin);
 
     if (isAllowed) {
       return callback(null, true);
     } else {
+      console.warn(`⚠️ Blocked origin by CORS: ${origin}`);
       return callback(null, false);
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 };
 
-// Applies CORS (including preflight OPTIONS) globally to all endpoints
+// Apply CORS globally before any parsing or routing
 app.use(cors(corsOptions));
 
 app.use(express.json());
@@ -60,12 +62,21 @@ app.get("/", (req, res) => {
   res.json({ status: "DermaGlow API is running live!" });
 });
 
-// 2. MOUNT YOUR ROUTES HERE
+// 2. MOUNT ROUTES
 app.use("/api/products", productRoutes);
 
-// 🛡️ GLOBAL ERROR HANDLER
+// 🛡️ GUARANTEED CORS ON ERRORS
+// Ensures that if an internal database or code error occurs, Express still sends CORS headers back
 app.use((err, req, res, next) => {
   console.error("🔥 Global Server Error:", err.stack || err.message);
+  
+  // Explicitly set CORS header on error response to prevent browser "CORS Masking"
+  const origin = req.headers.origin;
+  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
   res.status(err.status || 500).json({
     error: err.message || "Internal Server Error"
   });
