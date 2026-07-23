@@ -249,7 +249,7 @@ const Products = () => {
     return () => window.removeEventListener("toggle-ai-drawer", handleToggleEvent);
   }, []);
 
-  // 🌐 DIRECT SERVER-SIDE PAGINATION FETCH
+  // 🌐 DIRECT SERVER-SIDE PAGINATION & FILTER FETCH
   useEffect(() => {
     let isMounted = true;
     const syncCatalogData = async () => {
@@ -275,12 +275,16 @@ const Products = () => {
             setTotalItems(filteredWishlist.length); 
           }
         } else {
-          // Pass currentPage and itemsLimit directly to API
+          // Pass ALL active filters directly to the server API query parameters
           const responseData = await fetchProductsAPI({ 
             page: currentPage, 
             limit: itemsLimit, 
             category: activeCategory, 
-            search: currentSearch 
+            search: currentSearch,
+            maxPrice: maxPrice < 5000 ? maxPrice : undefined,
+            concern: selectedConcern !== "all" ? selectedConcern : undefined,
+            minRating: minRating > 0 ? minRating : undefined,
+            skinType: selectedSkinType !== "all" ? selectedSkinType : undefined
           });
           if (isMounted) { 
             setProducts(responseData?.rows || []); 
@@ -295,9 +299,20 @@ const Products = () => {
     };
     syncCatalogData();
     return () => { isMounted = false; };
-  }, [currentPage, itemsLimit, activeCategory, currentSearch, showWishlistOnly, WISHLIST_KEY]);
+  }, [
+    currentPage, 
+    itemsLimit, 
+    activeCategory, 
+    currentSearch, 
+    maxPrice, 
+    selectedConcern, 
+    minRating, 
+    selectedSkinType, 
+    showWishlistOnly, 
+    WISHLIST_KEY
+  ]);
 
-  // ⚡ MEMOIZED PROCESSING MATRIX
+  // ⚡ MEMOIZED DISPLAY SANITIZATION
   const displayedProductsList = useMemo(() => {
     return products.map(item => {
       const actualData = item?.product ? item.product : item;
@@ -312,31 +327,10 @@ const Products = () => {
         ...item,
         price: numPrice, 
         cleanPrice: numPrice,
-        cleanRating: Number(rawRating) > 0 ? Number(rawRating) : 4.2,
-        searchHaystack: `${actualData?.product_name || ""} ${actualData?.category || ""} ${actualData?.brand || ""} ${actualData?.concern || ""}`.toLowerCase(),
-        skinTypeHaystack: String(actualData?.skin_type || "").toLowerCase()
+        cleanRating: Number(rawRating) > 0 ? Number(rawRating) : 4.2
       };
-    }).filter(p => {
-      const matchesPrice = p.cleanPrice <= maxPrice;
-      const matchesRating = p.cleanRating >= minRating;
-      
-      let matchesConcern = true;
-      if (selectedConcern !== "all") {
-        if (selectedConcern === "oil") matchesConcern = p.searchHaystack.includes("oil") || p.searchHaystack.includes("sebum") || p.searchHaystack.includes("excess");
-        else if (selectedConcern === "damaged") matchesConcern = p.searchHaystack.includes("damaged") || p.searchHaystack.includes("repair") || p.searchHaystack.includes("barrier");
-        else matchesConcern = p.searchHaystack.includes(selectedConcern.toLowerCase());
-      }
-
-      let matchesSkinType = true;
-      if (selectedSkinType !== "all") {
-        if (selectedSkinType === "combination") matchesSkinType = p.skinTypeHaystack.includes("dry") && p.skinTypeHaystack.includes("oily");
-        else if (selectedSkinType === "combination_sensitive") matchesSkinType = p.skinTypeHaystack.includes("dry") && p.skinTypeHaystack.includes("oily") && p.skinTypeHaystack.includes("sensitive");
-        else if (selectedSkinType === "dry_sensitive") matchesSkinType = p.skinTypeHaystack.includes("dry") && p.skinTypeHaystack.includes("sensitive");
-        else matchesSkinType = p.skinTypeHaystack.includes(selectedSkinType.toLowerCase());
-      }
-      return matchesPrice && matchesRating && matchesConcern && matchesSkinType;
     });
-  }, [products, maxPrice, minRating, selectedConcern, selectedSkinType]);
+  }, [products]);
 
   // Calculate total pages from backend database count
   const totalPages = Math.ceil(totalItems / itemsLimit) || 1;
