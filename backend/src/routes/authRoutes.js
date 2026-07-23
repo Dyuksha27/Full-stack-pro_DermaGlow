@@ -1,23 +1,28 @@
 // backend/src/routes/authRoutes.js
 import express from "express";
-import { 
-  registerUser, 
-  loginUser, 
-  logoutUser, 
-  getUserProfile 
-} from "../controllers/authController.js"; // Verify these match your controller function names
+import {
+  login,
+  register,
+  googleAuthentication,
+  appleAuthentication,
+  getProfile,
+  logout,
+  clearSession 
+} from "../controllers/authController.js";
+import { protect } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Primary Registration Endpoint (/api/auth/register)
-router.post("/register", registerUser);
+router.post("/register", register);
+router.post("/login", login);
 
-// Alias to catch alternate frontend registration payloads (/api/auth/signup)
-router.post("/signup", registerUser);
+router.post("/google", googleAuthentication);
+router.post("/apple", appleAuthentication);
 
-// Authentication & Profile Routes
-router.post("/login", loginUser);
-router.post("/logout", logoutUser);
-router.get("/profile", getUserProfile);
+router.get("/profile", protect, getProfile);
+router.post("/logout", protect, logout);
+
+// 🛡️ UNGUARDED TRANSITION CLEARANCE: Purges tracking layers during user flips
+router.post("/clear-session", clearSession);
 
 export default router;
