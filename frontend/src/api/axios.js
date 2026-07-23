@@ -1,10 +1,18 @@
 import axios from "axios";
 
-// 🚀 DYNAMIC BASE URL:
-// Reads VITE_API_URL or VITE_API_BASE_URL if defined,
-// otherwise defaults directly to your Render production URL.
-const RAW_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "https://full-stack-pro-dermaglow-1.onrender.com";
-const API_BASE_URL = `${RAW_URL.replace(/\/$/, "")}/api`;
+// 1. Fetch raw env variable or fallback
+const rawEnv = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "https://full-stack-pro-dermaglow-1.onrender.com";
+
+// 2. Clean quotes, brackets, or trailing slashes/api
+const cleanEnv = rawEnv
+  .trim()
+  .replace(/^["']|["']$/g, "") // Remove wrapping quotes
+  .replace(/\/api\/?$/i, "")   // Remove trailing /api if present
+  .replace(/\/$/, "");         // Remove trailing slash
+
+// 3. Ensure full URL protocol
+const BASE_DOMAIN = cleanEnv.startsWith("http") ? cleanEnv : `https://${cleanEnv}`;
+const API_BASE_URL = `${BASE_DOMAIN}/api`;
 
 const API = axios.create({
   baseURL: API_BASE_URL,
@@ -31,8 +39,6 @@ API.interceptors.request.use(
     activeRequestControllers.set(config, controller);
 
     const rawToken = localStorage.getItem("token");
-    
-    // 🛡️ NETWORK ROOT SANITIZER: Prevents sending "Bearer null" or "Bearer undefined"
     const token = (rawToken && rawToken !== "null" && rawToken !== "undefined") ? rawToken : null;
 
     if (token) {
