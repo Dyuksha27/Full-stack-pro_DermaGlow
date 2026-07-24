@@ -96,20 +96,6 @@ Build and start all services:
 docker compose up --build
 ```
 
-The application will start running:
-
-### Frontend
-
-```
-http://localhost:5173
-```
-
-### Backend API
-
-```
-http://localhost:5000
-```
-
 ---
 
 ## 🔐 Environment Variables
