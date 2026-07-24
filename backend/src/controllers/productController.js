@@ -8,9 +8,9 @@ export const getProducts = async (req, res) => {
   try {
     const { page = 1, limit = 12, category, search, skinType, minRating, maxPrice, concern } = req.query;
     
-    // 🛡️ SAFE CAP: Parses incoming page/limit parameters and defaults to 12
+    // 🛡️ Flexible limit parsing without artificial 100-item cap
     const rawLimit = parseInt(limit, 10) || 12;
-    const parsedLimit = Math.min(Math.max(rawLimit, 1), 100); 
+    const parsedLimit = Math.max(rawLimit, 1); 
     const parsedOffset = (parseInt(page, 10) - 1) * parsedLimit;
 
     let conditions = [];
@@ -57,7 +57,7 @@ export const getProducts = async (req, res) => {
 
     const whereClause = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
 
-    // 1. Fetch Total Count of ALL matching items in DB
+    // 1. Fetch Total Count of ALL matching items in DB (returns total across full 50,346 dataset)
     const countQuery = `SELECT COUNT(*) FROM products${whereClause}`;
     const countResult = await pool.query(countQuery, filterValues);
     const totalCount = parseInt(countResult.rows[0].count, 10);
