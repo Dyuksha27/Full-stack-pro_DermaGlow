@@ -98,8 +98,6 @@ docker compose up --build
 
 ---
 
----
-
 ## 🌐 Live Demo
 
 Access the deployed application here:
