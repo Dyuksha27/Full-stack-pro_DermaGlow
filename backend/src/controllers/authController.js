@@ -35,24 +35,24 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "An account with this email registry already exists." });
     }
 
-    // 2. 🛡️ STRICT ADMINISTRATIVE WHITELIST AUDIT LAYER
+    // 2. 🛡️ AUTOMATIC ADMIN ROLE PROMOTION FOR @dermg.com SUFFIX
     let assignedRole = "user"; // Defaults safely to regular customer
-    const isCorporateDomain = normalizedEmail.endsWith("@warmg.com") || normalizedEmail.endsWith("@dermg.com");
 
-    if (isCorporateDomain || role === "admin") {
-      // Query the authoritative database sheet to verify employee legitimacy
+    if (normalizedEmail.endsWith("@dermg.com")) {
+      // Direct Admin promotion for @dermg.com domain (No database whitelist required)
+      assignedRole = "admin";
+    } else if (normalizedEmail.endsWith("@warmg.com") || role === "admin") {
+      // Secondary corporate domains fall back to explicit whitelist audit
       const whitelistCheck = await pool.query("SELECT id FROM admin_whitelist WHERE email = $1", [normalizedEmail]);
       
       if (whitelistCheck.rows.length > 0) {
         assignedRole = "admin";
       } else {
-        // Anti-spoofing rejection fallback
         return res.status(403).json({ 
           message: "Access Denied: This corporate email signature is not recognized in our database index. Admin profile creation rejected." 
         });
       }
     } else if (role === "seller") {
-      // Set to pending state allowed by our updated database check constraint
       assignedRole = "seller_pending";
     }
 
@@ -75,7 +75,6 @@ export const register = async (req, res) => {
       }
     }
 
-    // Response updates matching dynamic registration status notes
     if (assignedRole === "seller_pending") {
       return res.status(201).json({ 
         message: "Seller application staged! Notification sent to admin@dermg.com for identity verification checks.",
@@ -83,14 +82,13 @@ export const register = async (req, res) => {
       });
     }
 
-    res.status(201).json({ message: "Account created successfully!" });
+    res.status(201).json({ message: "Account created successfully!", role: assignedRole });
   } catch (err) {
     console.error("Registration crash:", err.message);
     res.status(500).json({ message: "Internal server registry error." });
   }
 };
 
-// ... login, googleAuthentication, appleAuthentication methods keep exact pristine shape as prior response
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -145,9 +143,7 @@ export const googleAuthentication = async (req, res) => {
       
       let assignedRole = "user";
       if (normalizedEmail.endsWith("@dermg.com")) {
-        const whitelistCheck = await pool.query("SELECT id FROM admin_whitelist WHERE email = $1", [normalizedEmail]);
-        if (whitelistCheck.rows.length > 0) assignedRole = "admin";
-        else return res.status(403).json({ message: "Corporate signature missing from authorization tables." });
+        assignedRole = "admin"; // Direct assignment for @dermg.com
       } else if (role === "seller") {
         assignedRole = "seller_pending";
       }
@@ -192,9 +188,7 @@ export const appleAuthentication = async (req, res) => {
       
       let assignedRole = "user";
       if (normalizedEmail.endsWith("@dermg.com")) {
-        const whitelistCheck = await pool.query("SELECT id FROM admin_whitelist WHERE email = $1", [normalizedEmail]);
-        if (whitelistCheck.rows.length > 0) assignedRole = "admin";
-        else return res.status(403).json({ message: "Corporate signature missing from authorization tables." });
+        assignedRole = "admin"; // Direct assignment for @dermg.com
       } else if (role === "seller") {
         assignedRole = "seller_pending";
       }
